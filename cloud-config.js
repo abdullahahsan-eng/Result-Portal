@@ -1,1 +1,1 @@
-window.SUPABASE_CONFIG={url:"https://ogwexgapntgdjnvyirzd.supabase.co",anonKey:"sb_publishable_MZg-oDmwlSyo880b_-Inxw_RmoM5GeX"};
+window.SUPABASE_CONFIG={url:"https://ogwexgapntgdjnvyirzd.supabase.co",anonKey:"sb_publishable_MZg-oDmwlSyo880b_-Inxw_RmoM5GeX"};window.MILLI_CLOUD_CONFIG=window.SUPABASE_CONFIG;
