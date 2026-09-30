@@ -62,7 +62,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{background:#eef5ff;c
 .publicResultArea .portal-result-sheet .sign{display:flex !important;justify-content:space-between !important;gap:20px !important;margin-top:28px !important;font-size:10px !important}
 @media (max-width:800px){.publicResultArea .portal-result-sheet{padding:12px !important}.publicResultArea .portal-result-sheet .metrics{grid-template-columns:repeat(3,minmax(0,1fr)) !important}}
 
-.cloudOk{background:#edf9f3;border-color:#b9e4cc;color:#1b7a4d}.cloudErr{background:#fff0f1;border-color:#efc0c5;color:#a33b45}</style>
+.cloudOk{background:#edf9f3;border-color:#b9e4cc;color:#1b7a4d}.cloudErr{background:#fff0f1;border-color:#efc0c5;color:#a33b45}
+.topRank1{background:#fff7d6 !important}.topRank2{background:#f2f4f7 !important}.topRank3{background:#fff0e4 !important}.topRank4{background:#eef6ff !important}
+.rankBadge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:4px 7px;border-radius:999px;font-weight:800;font-size:11px}
+.rank1{background:#f5c542;color:#5b4300}.rank2{background:#cfd6df;color:#34414d}.rank3{background:#d99663;color:#4b2b16}.rank4{background:#cfe5ff;color:#24547c}
+.yourRankBox{border:2px solid #a9c9e8 !important;background:#eef7ff !important}.yourRankLabel{font-size:9px;color:#487ca7;margin-bottom:2px}.yourRankValue{font-size:16px;font-weight:900;color:#17324d}
+</style>
 <style>
 body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#eef5fb,#f8fbfd);padding:20px}.authCard{width:min(430px,94vw);background:#fff;border:1px solid #d9e5ef;border-radius:20px;padding:28px;box-shadow:0 18px 55px rgba(20,55,85,.12);text-align:center}.authLogo{width:74px;height:74px;margin:0 auto 12px}.authLogo img{width:100%;height:100%;object-fit:contain}.authCard h1{margin:4px 0;color:#17324d;font-size:26px}.authCard p{margin:0 0 20px;color:#667b8e}.authCard .field{text-align:left;margin:12px 0}.authCard input{width:100%;box-sizing:border-box}.authBtn{width:100%;margin-top:8px;min-height:46px}.authMsg{min-height:22px;margin-top:10px;font-size:12px;font-weight:700}.authCard small{display:block;margin-top:14px;color:#7890a4;line-height:1.45}.appLocked{display:none!important}.teacherTopActions{display:flex;gap:8px;align-items:center}.sessionBadge{font-size:11px;background:#edf9f3;color:#1b7a4d;border:1px solid #b9e4cc;padding:7px 10px;border-radius:999px;font-weight:700}
 </style></head>
@@ -87,6 +92,7 @@ body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:fl
     <button onclick="showPage('students',this)">👨‍🎓 <span>Students</span></button>
     <button onclick="showPage('marks',this)">📝 <span>Enter Marks</span></button>
     <button onclick="showPage('attendance',this)">📅 <span>Attendance</span></button>
+    <button onclick="showPage('results',this)">🔎 <span>Result</span></button>
     <button onclick="showPage('overview',this)">📈 <span>Result Overview</span></button>
     <button onclick="showPage('print',this)">🖨️ <span>Print Results</span></button>
     <button onclick="showPage('settings',this)">⚙️ <span>Settings</span></button>
@@ -152,6 +158,22 @@ body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:fl
  </div>
 </section>
 
+<section id="results" class="page">
+ <div class="card">
+  <div class="sectionTitle">
+   <div><h2>🔎 Student Result</h2><p class="muted">Teacher portal se kisi bhi student ka result check aur print karein.</p></div>
+   <span class="versionPill">RESULT</span>
+  </div>
+  <div class="resultSearchRow no-print" style="margin-top:14px">
+   <input id="resultRollSearch" class="resultSearchInput" placeholder="Enter Roll Number..." inputmode="numeric" autocomplete="off">
+   <button id="resultFindBtn" class="primary btn resultFindBtn">🔍 Find Result</button>
+  </div>
+  <div id="publicResultArea" class="publicResultArea" style="margin-top:14px">
+   <div class="resultMessage">Enter a Roll Number above to view the result.</div>
+  </div>
+ </div>
+</section>
+
 <section id="overview" class="page">
  <div class="card">
   <div class="sectionTitle"><div><h2>📈 Result Overview</h2><p class="muted">Complete class performance overview — rank, marks, percentage, attendance and result.</p></div><span class="versionPill">CLASS OVERVIEW</span></div>
@@ -168,6 +190,7 @@ body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:fl
 <button class="primary btn printOption" onclick="printIndividualPrompt()">👤 Print Individual Result</button>
 <button class="purplebtn btn printOption" onclick="printClassSheet('all')">📋 Print Full Class Result Sheet</button>
 <button class="success btn printOption" onclick="printAll('all')">📚 Print All Class Results</button>
+<button class="light btn printOption" onclick="downloadResultsCSV()">⬇️ Download Result CSV</button>
 </div><div class="notice" style="margin-top:16px">Individual Result: A4 Portrait • Full Class Result Sheet: A3 Landscape • Print mein <b>Background graphics</b> ON rakhein.</div></div><div id="printArea"></div></section>
 
 <section id="settings" class="page">
@@ -286,9 +309,12 @@ function showPage(id,btn){
  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active")); if(btn)btn.classList.add("active");
  if(id==="students")renderStudents(); if(id==="attendance")renderAttendance(); if(id==="results")renderResults(); if(id==="overview")renderResultOverview(); if(id==="dashboard")updateDashboard(); if(id==="settings")loadSettings();
 }
+function rollNumber(v){const n=Number(String(v).trim());return Number.isFinite(n)?n:Number.MAX_SAFE_INTEGER;}
+function rollSorted(list=students){return [...list].sort((a,b)=>(rollNumber(a.roll)-rollNumber(b.roll))||String(a.roll).localeCompare(String(b.roll)));}
+function ordinal(n){if(!n||n==="—")return "—";const num=Number(n),mod100=num%100;return num+(mod100>=11&&mod100<=13?"th":num%10===1?"st":num%10===2?"nd":num%10===3?"rd":"th");}
 function rankData(){
  const completed=students.filter(st=>calc(st).complete).map(st=>({s:st,...calc(st)}));
- return completed.sort((a,b)=>b.pct-a.pct||Number(a.s.roll)-Number(b.s.roll));
+ return completed.sort((a,b)=>b.pct-a.pct||rollNumber(a.s.roll)-rollNumber(b.s.roll));
 }
 
 function calc(s){
@@ -312,28 +338,30 @@ function updateDashboard(){
 
 function renderStudents(){
  let q=(document.getElementById("studentSearch")?.value||"").toLowerCase();
- let all=students.map(st=>({s:st,c:calc(st)}));
  let ranks=rankData();
+ let all=rollSorted(students).map(st=>({s:st,c:calc(st)}));
  document.getElementById("studentTable").innerHTML=all.filter(x=>(x.s.name+" "+x.s.roll).toLowerCase().includes(q)).map(x=>{
-   let r=ranks.findIndex(y=>y.s.roll===x.s.roll)+1,c=x.c;
-   return `<tr><td>${c.complete?r:"—"}</td><td>${x.s.roll}</td><td><b>${esc(x.s.name)}</b></td><td>${esc(x.s.father||"—")}</td><td>${x.s.gender||"—"}</td><td>${c.complete?c.pct.toFixed(1)+"%":"—"}</td><td><span class="badge ${c.complete?(c.passed?"pass":"fail"):"na"}">${c.complete?(c.passed?"PASS":"FAIL"):"Pending"}</span></td><td><button class="light btn" onclick="editStudent('${x.s.roll}')">Edit</button> <button class="danger btn" onclick="deleteStudent('${x.s.roll}')">Delete</button></td></tr>`;
+   let r=ranks.findIndex(y=>String(y.s.roll)===String(x.s.roll))+1,c=x.c;
+   let rankCell=c.complete&&r>0?`<span class="rankBadge ${r<=4?"rank"+r:""}">${r}</span>`:"—";
+   let rowClass=c.complete&&r>=1&&r<=4?`topRank${r}`:"";
+   const rollEsc=String(x.s.roll).replace(/'/g,"\\'");
+   return `<tr class="${rowClass}"><td>${rankCell}</td><td><b>${esc(x.s.roll)}</b></td><td><b>${esc(x.s.name)}</b></td><td>${esc(x.s.father||"—")}</td><td>${x.s.gender||"—"}</td><td>${c.complete?c.pct.toFixed(1)+"%":"—"}</td><td><span class="badge ${c.complete?(c.passed?"pass":"fail"):"na"}">${c.complete?(c.passed?"PASS":"FAIL"):"Pending"}</span></td><td><button class="light btn" onclick="editStudent('${rollEsc}')">Edit</button> <button class="danger btn" onclick="deleteStudent('${rollEsc}')">Delete</button></td></tr>`;
  }).join("");
 }
-
 function renderAttendance(){
- document.getElementById("attendanceTable").innerHTML=students.map(s=>{let a=s.attendance||{},pct=a.total?(Number(a.present)/Number(a.total)*100):0;return `<tr><td>${s.roll}</td><td><b>${esc(s.name)}</b></td><td><input style="width:90px;padding:7px" type="number" value="${a.present||""}" onchange="setAttendance('${s.roll}',this.value,'present')"></td><td><input style="width:90px;padding:7px" type="number" value="${a.total||""}" onchange="setAttendance('${s.roll}',this.value,'total')"></td><td><b>${a.total?pct.toFixed(1)+"%":"—"}</b></td></tr>`}).join("");
+ document.getElementById("attendanceTable").innerHTML=rollSorted(students).map(s=>{let a=s.attendance||{},pct=a.total?(Number(a.present)/Number(a.total)*100):0;const rollEsc=String(s.roll).replace(/'/g,"\\'");return `<tr><td>${esc(s.roll)}</td><td><b>${esc(s.name)}</b></td><td><input style="width:90px;padding:7px" type="number" value="${a.present||""}" onchange="setAttendance('${rollEsc}',this.value,'present')"></td><td><input style="width:90px;padding:7px" type="number" value="${a.total||""}" onchange="setAttendance('${rollEsc}',this.value,'total')"></td><td><b>${a.total?pct.toFixed(1)+"%":"—"}</b></td></tr>`}).join("");
 }
 function setAttendance(roll,val,key){let s=students.find(x=>x.roll===roll);s.attendance=s.attendance||{};s.attendance[key]=val;save();updateDashboard()}
 function renderResultOverview(){
  const q=(document.getElementById("overviewSearch")?.value||"").trim().toLowerCase();
  const filter=document.getElementById("overviewStatus")?.value||"all";
  const ranks=rankData();
- let list=students.map(s=>({s,c:calc(s),rank:(()=>{const i=ranks.findIndex(x=>x.s.roll===s.roll);return i>=0?i+1:"—"})()}));
+ let list=rollSorted(students).map(s=>({s,c:calc(s),rank:(()=>{const i=ranks.findIndex(x=>String(x.s.roll)===String(s.roll));return i>=0?i+1:"—"})()}));
  list=list.filter(x=>(x.s.name+" "+x.s.roll).toLowerCase().includes(q));
  if(filter!=="all") list=list.filter(x=>filter==="pending"?!x.c.complete:filter==="pass"?(x.c.complete&&x.c.passed):(x.c.complete&&!x.c.passed));
  const complete=students.map(calc).filter(c=>c.complete),passed=complete.filter(c=>c.passed).length,failed=complete.length-passed,pending=students.length-complete.length;
  document.getElementById("overviewSummary").innerHTML=`<div class="overviewChip">Students <b>${students.length}</b></div><div class="overviewChip overviewPass">Passed <b>${passed}</b></div><div class="overviewChip overviewFail">Failed <b>${failed}</b></div><div class="overviewChip">Pending <b>${pending}</b></div><div class="overviewChip">Average <b>${complete.length?(complete.reduce((a,c)=>a+c.pct,0)/complete.length).toFixed(1):"0.0"}%</b></div>`;
- document.getElementById("overviewTable").innerHTML=list.map(x=>`<tr><td>${x.rank}</td><td>${esc(x.s.roll)}</td><td><b>${esc(x.s.name)}</b></td><td>${esc(x.s.father||"—")}</td><td>${x.c.total}/800</td><td>${x.c.complete?x.c.pct.toFixed(1)+"%":"—"}</td><td>${x.c.complete?x.c.grade:"—"}</td><td>${x.c.att?x.c.att.toFixed(1)+"%":"—"}</td><td><span class="badge ${x.c.complete?(x.c.passed?"pass":"fail"):"na"}">${x.c.complete?(x.c.passed?"PASS":"FAIL"):"Pending"}</span></td><td class="no-print"><button class="light btn" onclick="showResultForRoll('${esc(x.s.roll)}')">View</button></td></tr>`).join("")||`<tr><td colspan="10" style="text-align:center;padding:25px;color:#718096">No students found.</td></tr>`;
+ document.getElementById("overviewTable").innerHTML=list.map(x=>{const rowClass=x.c.complete&&x.rank>=1&&x.rank<=4?`topRank${x.rank}`:"";const rankCell=x.c.complete&&x.rank>0?`<span class="rankBadge ${x.rank<=4?"rank"+x.rank:""}">${x.rank}</span>`:"—";const rollEsc=String(x.s.roll).replace(/'/g,"\\'");return `<tr class="${rowClass}"><td>${rankCell}</td><td><b>${esc(x.s.roll)}</b></td><td><b>${esc(x.s.name)}</b></td><td>${esc(x.s.father||"—")}</td><td>${x.c.total}/800</td><td>${x.c.complete?x.c.pct.toFixed(1)+"%":"—"}</td><td>${x.c.complete?x.c.grade:"—"}</td><td>${x.c.att?x.c.att.toFixed(1)+"%":"—"}</td><td><span class="badge ${x.c.complete?(x.c.passed?"pass":"fail"):"na"}">${x.c.complete?(x.c.passed?"PASS":"FAIL"):"Pending"}</span></td><td class="no-print"><button class="light btn" onclick="showResultForRoll('${rollEsc}')">View</button></td></tr>`}).join("")||`<tr><td colspan="10" style="text-align:center;padding:25px;color:#718096">No students found.</td></tr>`;
 }
 function showResultForRoll(roll){
  printStudentByRoll(roll);
@@ -349,7 +377,7 @@ function screenResultCard(s){
  <div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid #a9c9e8;padding-bottom:8px"><img src="${settings.logo}" style="width:54px;height:54px;max-width:54px;max-height:54px;object-fit:contain;display:block;flex:0 0 54px"><div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:800;line-height:1.2">${esc(settings.school)}</div><div style="font-size:13px;font-weight:700;color:#487ca7;margin-top:2px">${esc(settings.exam)}</div><div style="font-size:10px;color:#718096;margin-top:2px">${esc(settings.cls)} • Individual Report Card</div></div><div style="flex:0 0 68px">${photo}</div></div>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0"><div style="background:#f4f8fc;border-radius:6px;padding:7px"><div style="font-size:9px;color:#74859a">Student Name</div><strong style="font-size:11px">${esc(s.name)}</strong></div><div style="background:#f4f8fc;border-radius:6px;padding:7px"><div style="font-size:9px;color:#74859a">Roll No.</div><strong style="font-size:11px">${esc(s.roll)}</strong></div><div style="background:#f4f8fc;border-radius:6px;padding:7px"><div style="font-size:9px;color:#74859a">Father Name</div><strong style="font-size:11px">${esc(s.father||"—")}</strong></div><div style="background:#f4f8fc;border-radius:6px;padding:7px"><div style="font-size:9px;color:#74859a">Gender</div><strong style="font-size:11px">${esc(s.gender||"—")}</strong></div></div>
  <table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><th style="background:#e9f2fa;color:#284a66;border:1px solid #ccd9e5;padding:6px;text-align:left">Subject</th><th style="background:#e9f2fa;color:#284a66;border:1px solid #ccd9e5;padding:6px">Max Marks</th><th style="background:#e9f2fa;color:#284a66;border:1px solid #ccd9e5;padding:6px">Obtained</th><th style="background:#e9f2fa;color:#284a66;border:1px solid #ccd9e5;padding:6px">Grade</th><th style="background:#e9f2fa;color:#284a66;border:1px solid #ccd9e5;padding:6px">Status</th></tr></thead><tbody>${rows}${grades}</tbody></table>
- <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:9px">${box("Total Marks",`${c.total}/800`)}${box("Percentage",`${c.pct.toFixed(1)}%`)}${box("Class Rank",c.complete?rank:"—")}${box("Attendance",c.att?c.att.toFixed(1)+"%":"—")}${box("Overall Grade",c.complete?c.grade:"—")}${box("Result",c.complete?(c.passed?"PASS":"FAIL"):"PENDING",c.complete?(c.passed?"#138a63":"#c84b59"):"#c4841d")}</div>
+ <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:9px">${box("Total Marks",`${c.total}/800`)}${box("Percentage",`${c.pct.toFixed(1)}%`)}${box("Your Rank",c.complete?ordinal(rank):"—")}${box("Attendance",c.att?c.att.toFixed(1)+"%":"—")}${box("Overall Grade",c.complete?c.grade:"—")}${box("Result",c.complete?(c.passed?"PASS":"FAIL"):"PENDING",c.complete?(c.passed?"#138a63":"#c84b59"):"#c4841d")}</div>
  <div style="margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:10px"><b>Auto Remarks:</b> ${esc(c.remarks)}</div><div style="display:flex;justify-content:space-between;gap:20px;margin-top:24px;font-size:10px"><span>Class Teacher: ${esc(settings.teacher)}</span><span>Principal: ${esc(settings.principal||"")}</span></div></div>`;
 }
 
@@ -456,6 +484,22 @@ function previewStudentPhoto(input){let f=input.files[0];if(!f)return;let r=new 
 function uploadLogo(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{settings.logo=r.result;document.getElementById("sideLogo").src=r.result;save()};r.readAsDataURL(f)}
 function loadSettings(){document.getElementById("schoolName").value=settings.school;document.getElementById("examName").value=settings.exam;document.getElementById("className").value=settings.cls;document.getElementById("teacherName").value=settings.teacher;document.getElementById("principalName").value=settings.principal;document.getElementById("passingPct").value=settings.passPct}
 function saveSettings(){settings={school:document.getElementById("schoolName").value,exam:document.getElementById("examName").value,cls:document.getElementById("className").value,teacher:document.getElementById("teacherName").value,principal:document.getElementById("principalName").value,passPct:Number(document.getElementById("passingPct").value)||33,logo:settings.logo};save();location.reload()}
+function downloadResultsCSV(){
+ const arr=rollSorted(students),ranks=rankData();
+ const headers=["Rank","Roll No","Student Name","Father Name","Gender",...MARK_SUBJECTS,...GRADE_ONLY_SUBJECTS,"Total / 800","Percentage","Overall Grade","Attendance %","Result"];
+ const rows=arr.map(s=>{
+   const c=calc(s),i=ranks.findIndex(x=>String(x.s.roll)===String(s.roll)),rank=i>=0?i+1:"";
+   const marks=MARK_SUBJECTS.map(sub=>s.marks?.[sub]?.obt??"");
+   const grades=GRADE_ONLY_SUBJECTS.map(sub=>s.marks?.[sub]?.grade??"");
+   const att=c.att?c.att.toFixed(1):"";
+   return [rank,s.roll,s.name,s.father||"",s.gender||"",...marks,...grades,`${c.total}/800`,c.complete?c.pct.toFixed(1)+"%":"",c.complete?c.grade:"",att,c.complete?(c.passed?"PASS":"FAIL"):"PENDING"];
+ });
+ const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+ const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=`Milli-Model-School-Class-7B-Results-${new Date().toISOString().slice(0,10)}.csv`;
+ document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
 function printStudentByRoll(roll){const s=students.find(x=>String(x.roll)===String(roll));if(!s){alert("Student Not Found — please check the Roll Number.");return;}printHTML(reportCard(s));}
 function printIndividualPrompt(){
  let roll=prompt("Enter Student Roll Number:");
@@ -468,19 +512,24 @@ function printIndividualPrompt(){
 
 function printAll(g){let arr=students.filter(s=>g==="all"||s.gender=== (g==="boys"?"Boy":"Girl"));printHTML(arr.map(reportCard).join('<div class="break"></div>'))}
 function printClassSheet(){
- const arr=students.slice().sort((a,b)=>Number(a.roll)-Number(b.roll));
- const heads=MARK_SUBJECTS.map(x=>`<th>${x}</th>`).join("")+GRADE_ONLY_SUBJECTS.map(x=>`<th>${x}<br><small>Grade</small></th>`).join("");
+ const arr=rollSorted(students);
+ const heads=MARK_SUBJECTS.map(x=>`<th>${x}<br><small>Marks</small></th>`).join("")+GRADE_ONLY_SUBJECTS.map(x=>`<th>${x}<br><small>Grade</small></th>`).join("");
  const ranks=rankData();
- const rows=arr.map((st)=>{const c=calc(st),ri=ranks.findIndex(x=>x.s.roll===st.roll),rank=ri>=0?ri+1:"—";const cells=MARK_SUBJECTS.map(sub=>`<td>${st.marks?.[sub]?.obt??"—"}</td>`).join("");const grades=GRADE_ONLY_SUBJECTS.map(sub=>`<td><b>${st.marks?.[sub]?.grade||"—"}</b></td>`).join("");return `<tr><td>${rank}</td><td>${esc(st.roll)}</td><td>${esc(st.name)}</td>${cells}${grades}<td>${c.total}/800</td><td>${c.pct.toFixed(1)}%</td><td>${c.complete?c.grade:"—"}</td><td>${c.att?c.att.toFixed(1)+"%":"—"}</td><td>${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</td></tr>`}).join("");
+ const rows=arr.map((st)=>{
+   const c=calc(st),ri=ranks.findIndex(x=>String(x.s.roll)===String(st.roll)),rank=ri>=0?ri+1:null;
+   const cells=MARK_SUBJECTS.map(sub=>`<td>${st.marks?.[sub]?.obt??"—"}</td>`).join("");
+   const grades=GRADE_ONLY_SUBJECTS.map(sub=>`<td><b>${st.marks?.[sub]?.grade||"—"}</b></td>`).join("");
+   const rowClass=c.complete&&rank>=1&&rank<=4?`topRank${rank}`:"";
+   return `<tr class="${rowClass}"><td>${rank?`<b>${rank}</b>`:"—"}</td><td>${esc(st.roll)}</td><td>${esc(st.name)}</td>${cells}${grades}<td>${c.total}/800</td><td>${c.pct.toFixed(1)}%</td><td>${c.complete?c.grade:"—"}</td><td>${c.att?c.att.toFixed(1)+"%":"—"}</td><td>${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</td></tr>`;
+ }).join("");
  printHTML(`<div class="sheet landscape classSheetPage"><div class="sheetHead"><img src="${settings.logo}"><div><h1>${esc(settings.school)}</h1><h2>${esc(settings.exam)}</h2><p>${esc(settings.cls)} • Full Class Result Sheet</p></div></div><table class="printTable classSheet"><thead><tr><th>Rank</th><th>Roll</th><th>Student</th>${heads}<th>Total</th><th>%</th><th>Grade</th><th>Attendance</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table><div class="summaryPrint">Class Teacher: ${esc(settings.teacher)} &nbsp;&nbsp; Principal: ${esc(settings.principal||"")}</div></div>`);
 }
-
 function reportCard(s){
  const c=calc(s),rankIndex=rankData().findIndex(x=>x.s.roll===s.roll),rank=rankIndex>=0?rankIndex+1:"—";
  const photo=s.photo?`<img class="studentPhoto" src="${s.photo}">`:`<img class="studentPhoto placeholderImg" src="${defaultGenderIcon(s.gender)}">`;
  const rows=MARK_SUBJECTS.map(sub=>{const m=s.marks?.[sub];return `<tr><td>${sub}</td><td>100</td><td>${m?.obt??"—"}</td><td>${m?subjectGrade(Number(m.obt),100):"—"}</td><td>${m?(Number(m.obt)>=Number(m.pass??33)?"PASS":"FAIL"):"—"}</td></tr>`}).join("");
  const gr=GRADE_ONLY_SUBJECTS.map(sub=>`<tr><td>${sub}</td><td>Grade Only</td><td>—</td><td>${s.marks?.[sub]?.grade||"—"}</td><td>—</td></tr>`).join("");
- return `<div class="sheet portal-result-sheet"><div class="sheetHead portal-result-head"><img src="${settings.logo}"><div><h1>${esc(settings.school)}</h1><h2>${esc(settings.exam)}</h2><p>${esc(settings.cls)} • Individual Report Card</p></div>${photo}</div><div class="infoGrid"><div><b>Student Name</b><span>${esc(s.name)}</span></div><div><b>Roll No.</b><span>${esc(s.roll)}</span></div><div><b>Father Name</b><span>${esc(s.father||"—")}</span></div><div><b>Gender</b><span>${esc(s.gender||"—")}</span></div></div><table class="printTable"><thead><tr><th>Subject</th><th>Max Marks</th><th>Obtained</th><th>Grade</th><th>Status</th></tr></thead><tbody>${rows}${gr}</tbody></table><div class="metrics"><div>Total Marks<strong>${c.total}/800</strong></div><div>Percentage<strong>${c.pct.toFixed(1)}%</strong></div><div>Class Rank<strong>${c.complete?rank:"—"}</strong></div><div>Attendance<strong>${c.att?c.att.toFixed(1)+"%":"—"}</strong></div><div>Overall Grade<strong>${c.complete?c.grade:"—"}</strong></div><div>Result<strong class="${c.passed?"p":"f"}">${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</strong></div></div><div class="remarks"><b>Auto Remarks:</b> ${esc(c.remarks)}</div><div class="sign"><span>Class Teacher: ${esc(settings.teacher)}</span><span>Principal: ${esc(settings.principal||"")}</span></div></div>`;
+ return `<div class="sheet portal-result-sheet"><div class="sheetHead portal-result-head"><img src="${settings.logo}"><div><h1>${esc(settings.school)}</h1><h2>${esc(settings.exam)}</h2><p>${esc(settings.cls)} • Individual Report Card</p></div>${photo}</div><div class="infoGrid"><div><b>Student Name</b><span>${esc(s.name)}</span></div><div><b>Roll No.</b><span>${esc(s.roll)}</span></div><div><b>Father Name</b><span>${esc(s.father||"—")}</span></div><div><b>Gender</b><span>${esc(s.gender||"—")}</span></div></div><table class="printTable"><thead><tr><th>Subject</th><th>Max Marks</th><th>Obtained</th><th>Grade</th><th>Status</th></tr></thead><tbody>${rows}${gr}</tbody></table><div class="metrics"><div>Total Marks<strong>${c.total}/800</strong></div><div>Percentage<strong>${c.pct.toFixed(1)}%</strong></div><div class="yourRankBox"><div class="yourRankLabel">Your Rank</div><div class="yourRankValue">${c.complete?ordinal(rank):"—"}</div></div><div>Attendance<strong>${c.att?c.att.toFixed(1)+"%":"—"}</strong></div><div>Overall Grade<strong>${c.complete?c.grade:"—"}</strong></div><div>Result<strong class="${c.passed?"p":"f"}">${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</strong></div></div><div class="remarks"><b>Auto Remarks:</b> ${esc(c.remarks)}</div><div class="sign"><span>Class Teacher: ${esc(settings.teacher)}</span><span>Principal: ${esc(settings.principal||"")}</span></div></div>`;
 }
 
 function printHTML(body){let w=window.open("","_blank");w.document.write(`<html><head><title>Print Result</title><style>${printCSS()}
@@ -490,7 +539,7 @@ function printHTML(body){let w=window.open("","_blank");w.document.write(`<html>
 
 </style></head><body>${body}<footer class="appFooter">Milli Model School Result Portal • <b>Version 4.0.6</b></footer></body></html>`);w.document.close();setTimeout(()=>w.print(),500)}
 
-function printCSS(){return `.sheet{width:190mm;min-height:275mm;margin:0 auto;padding:9mm;font-family:Arial;color:#17324d;background:#fff}.landscape{width:400mm;min-height:275mm}.classSheetPage{page:classSheet}.sheetHead{display:flex;align-items:center;gap:14px;border-bottom:3px solid #a9c9e8;padding-bottom:8px}.sheetHead img{width:62px;height:62px;object-fit:contain}.sheetHead h1{margin:0;font-size:21px}.sheetHead h2{margin:3px 0;font-size:14px;color:#487ca7}.sheetHead p{margin:0;color:#718096;font-size:11px}.studentPhoto{margin-left:auto;width:70px;height:84px;object-fit:cover;border:1px solid #ccd9e5;border-radius:7px}.placeholderImg{padding:3px;background:#f4f8fb}.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.infoGrid div{background:#f4f8fc;border-radius:6px;padding:7px}.infoGrid b{display:block;color:#74859a;font-size:9px}.infoGrid span{font-weight:700;font-size:11px}.printTable{width:100%;border-collapse:collapse;margin-top:9px;font-size:9px}.printTable th{background:#e9f2fa;color:#284a66}.printTable th,.printTable td{border:1px solid #ccd9e5;padding:5px;text-align:center}.printTable td:first-child,.printTable th:first-child{text-align:left}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:9px}.metrics div{background:#f1f7fb;border:1px solid #dce8f1;border-radius:6px;padding:7px;text-align:center;font-size:9px}.metrics strong{display:block;font-size:14px;margin-top:2px}.metrics .p{color:#138a63}.metrics .f{color:#c84b59}.remarks{margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:10px}.sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10px}.summaryPrint{margin-top:10px;font-size:9px;color:#65758a}.classSheet{font-size:7px}.classSheet th,.classSheet td{padding:3px 2px;white-space:nowrap}.break{page-break-after:always}@page{size:A4 portrait;margin:8mm} @page classSheet{size:A3 landscape;margin:8mm}@media print{body{margin:0}.landscape{page-break-before:always;page-break-inside:avoid}}`; }
+function printCSS(){return `.sheet{width:190mm;min-height:275mm;margin:0 auto;padding:9mm;font-family:Arial;color:#17324d;background:#fff}.landscape{width:400mm;min-height:275mm}.classSheetPage{page:classSheet}.sheetHead{display:flex;align-items:center;gap:14px;border-bottom:3px solid #a9c9e8;padding-bottom:8px}.sheetHead img{width:62px;height:62px;object-fit:contain}.sheetHead h1{margin:0;font-size:21px}.sheetHead h2{margin:3px 0;font-size:14px;color:#487ca7}.sheetHead p{margin:0;color:#718096;font-size:11px}.studentPhoto{margin-left:auto;width:70px;height:84px;object-fit:cover;border:1px solid #ccd9e5;border-radius:7px}.placeholderImg{padding:3px;background:#f4f8fb}.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.infoGrid div{background:#f4f8fc;border-radius:6px;padding:7px}.infoGrid b{display:block;color:#74859a;font-size:9px}.infoGrid span{font-weight:700;font-size:11px}.printTable{width:100%;border-collapse:collapse;margin-top:9px;font-size:9px}.printTable th{background:#e9f2fa;color:#284a66}.printTable th,.printTable td{border:1px solid #ccd9e5;padding:5px;text-align:center}.printTable td:first-child,.printTable th:first-child{text-align:left}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:9px}.metrics div{background:#f1f7fb;border:1px solid #dce8f1;border-radius:6px;padding:7px;text-align:center;font-size:9px}.metrics strong{display:block;font-size:14px;margin-top:2px}.metrics .p{color:#138a63}.metrics .f{color:#c84b59}.remarks{margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:10px}.sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10px}.summaryPrint{margin-top:10px;font-size:9px;color:#65758a}.classSheet{width:100%;table-layout:fixed;font-size:8.5px}.classSheet th,.classSheet td{padding:3px 2px;white-space:nowrap;font-size:8.5px;line-height:1.15}.classSheet th:nth-child(3),.classSheet td:nth-child(3){width:19%}.break{page-break-after:always}@page{size:A4 portrait;margin:8mm} @page classSheet{size:A3 landscape;margin:6mm}@media print{body{margin:0}.landscape{width:100%;min-height:0;padding:5mm;box-sizing:border-box;page-break-before:always;page-break-inside:avoid}.classSheetPage{width:100%;min-height:0;box-sizing:border-box}.classSheetPage .sheetHead{padding-bottom:5px}.classSheetPage .sheetHead img{width:48px;height:48px}.classSheetPage .sheetHead h1{font-size:18px}.classSheetPage .sheetHead h2{font-size:12px}.classSheetPage .sheetHead p{font-size:9px}.classSheetPage .summaryPrint{font-size:8px;margin-top:5px}}`; }
 function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 document.getElementById("sideLogo").src=settings.logo;
 updateDashboard();renderStudents();renderAttendance();renderResultOverview();loadSettings();
