@@ -141,10 +141,11 @@ body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:fl
   <div id="marksForm" style="display:none;margin-top:16px">
    <div id="marksStatusBar" class="marksStatusBar"></div>
    <div class="grid3">
-    <div class="field"><label>Maximum Marks</label><input id="maxMarks" type="number" value="100"></div>
-    <div class="field"><label>Obtained Marks</label><input id="obtMarks" type="number" min="0"></div>
-    <div class="field"><label>Passing Marks</label><input id="passMarks" type="number" value="33"></div>
+    <div class="field"><label>Maximum Marks</label><input id="maxMarks" type="number" value="100" readonly></div>
+    <div class="field"><label>Obtained Marks</label><input id="obtMarks" type="number" min="0" max="100"></div>
+    <div class="field"><label>Half-Yearly Status</label><select id="halfStatus" onchange="updateHalfStatusInput()"><option value="present">Present</option><option value="AB">AB — Absent</option><option value="ML">ML — Medical Leave</option></select></div>
    </div>
+   <div class="field" style="max-width:240px;margin-top:8px"><label>Passing Marks</label><input id="passMarks" type="number" value="33"></div>
    <div class="toolbar" style="margin-top:12px"><button class="success btn" onclick="saveMark()">💾 Save / Update Marks</button><button class="warning btn" onclick="resetCurrentMark()">↺ Reset Subject Marks</button><button class="danger btn" onclick="resetAllMarks()">🗑 Reset All Marks</button></div>
    <div id="saveMarkMsg" class="saveMarkMsg"></div><div id="studentSummary"></div>
    <div class="marksSnapshotWrap"><h3>Subject-wise Marks Status</h3><div id="marksSnapshot"></div></div>
@@ -190,7 +191,7 @@ body{background:#f3f7fb}.authGate{position:fixed;inset:0;z-index:9999;display:fl
 <button class="primary btn printOption" onclick="printIndividualPrompt()">👤 Print Individual Result</button>
 <button class="purplebtn btn printOption" onclick="printClassSheet('all')">📋 Print Full Class Result Sheet</button>
 <button class="success btn printOption" onclick="printAll('all')">📚 Print All Class Results</button>
-<button class="light btn printOption" onclick="downloadResultsCSV()">⬇️ Download Result CSV</button>
+<button class="light btn printOption" onclick="downloadResultsCSV()">⬇️ Download Result CSV</button><button class="success btn printOption" onclick="downloadResultsExcel()">📗 Download Coloured Excel</button>
 </div><div class="notice" style="margin-top:16px">Individual Result: A4 Portrait • Full Class Result Sheet: A3 Landscape • Print mein <b>Background graphics</b> ON rakhein.</div></div><div id="printArea"></div></section>
 
 <section id="settings" class="page">
@@ -359,7 +360,7 @@ function rankData(){
 function calc(s){
  let marks=s.marks||{},total=MARK_SUBJECTS.reduce((a,x)=>a+Number(marks[x]?.obt||0),0),max=700;
  let complete=MARK_SUBJECTS.every(x=>marks[x]&&marks[x].obt!==""&&marks[x].obt!=null)&&GRADE_ONLY_SUBJECTS.every(x=>marks[x]?.grade);
- let pct=total/max*100,failSub=MARK_SUBJECTS.filter(x=>marks[x]&&Number(marks[x].obt)<Number(marks[x].pass||33));
+ let pct=total/max*100,failSub=MARK_SUBJECTS.filter(x=>marks[x]&&(Number(marks[x].obt)<Number(marks[x].pass||33)||["AB","ML"].includes(marks[x].halfStatus)));
  let passed=complete&&failSub.length===0&&pct>=Number(settings.passPct||33),grade=pct>=90?"A+":pct>=80?"A":pct>=70?"B+":pct>=60?"B":pct>=50?"C":pct>=33?"D":"F";
  let att=s.attendance&&s.attendance.total?(Number(s.attendance.present)/Number(s.attendance.total)*100):0;
  let remarks=passed?(pct>=90?"Outstanding performance. Keep it up!":pct>=80?"Very good performance.":"Good effort. Keep improving."):(!complete?"Complete all subjects and grade-only subjects to generate final result.":"Needs improvement in "+(failSub.join(", ")||"overall performance")+".");
@@ -484,7 +485,8 @@ function loadSubject(){
  document.getElementById("maxMarks").value=gradeOnly?"":100;
  document.getElementById("obtMarks").value=gradeOnly?"":(x.obt??"");
  document.getElementById("passMarks").value=gradeOnly?"":(x.pass??33);
- document.getElementById("maxMarks").disabled=gradeOnly;document.getElementById("obtMarks").disabled=gradeOnly;document.getElementById("passMarks").disabled=gradeOnly;
+ const hs=document.getElementById("halfStatus");if(hs){hs.value=x.halfStatus||"present";hs.disabled=gradeOnly;}
+ document.getElementById("maxMarks").disabled=true;document.getElementById("obtMarks").disabled=gradeOnly;updateHalfStatusInput();document.getElementById("passMarks").disabled=gradeOnly;
  let old=document.getElementById("gradeWrap");if(old)old.remove();
  if(gradeOnly){
    const div=document.createElement("div");div.className="field";div.id="gradeWrap";
@@ -495,6 +497,7 @@ function loadSubject(){
  renderStudentSummary();renderMarksSnapshot();
 }
 
+function updateHalfStatusInput(){const st=document.getElementById("halfStatus")?.value||"present",inp=document.getElementById("obtMarks");if(!inp)return;inp.max=st==="present"?100:20;inp.placeholder=st==="present"?"Marks out of 100":"Marks out of 20";const bar=document.getElementById("marksStatusBar");if(bar)bar.textContent=st==="present"?"Present: enter the combined marks out of 100.":(st==="AB"?"Half-Yearly Absent: enter only the available marks out of 20; shown in blue.":"Medical Leave: enter only the available marks out of 20; shown in blue.");}
 function saveMark(){
  if(!currentStudent)return alert("Please search a Roll Number first.");
  const sub=document.getElementById("subjectSelect").value,gradeOnly=isGradeOnly(sub);
@@ -505,8 +508,11 @@ function saveMark(){
    currentStudent.marks[sub]={grade};
  }else{
    const obt=Number(document.getElementById("obtMarks").value);
-   if(!Number.isFinite(obt)||obt<0||obt>100)return alert("Enter obtained marks from 0 to 100.");
-   currentStudent.marks[sub]={obt,max:100,pass:Number(document.getElementById("passMarks").value)||33};
+   const halfStatus=document.getElementById("halfStatus")?.value||"present";
+   const limit=halfStatus==="present"?100:20;
+   if(!Number.isFinite(obt)||obt<0||obt>limit)return alert(`Enter obtained marks from 0 to ${limit} for the selected Half-Yearly status.`);
+   
+   currentStudent.marks[sub]={obt,max:100,pass:Number(document.getElementById("passMarks").value)||33,halfStatus};
  }
  save();renderStudentSummary();renderMarksSnapshot();updateDashboard();renderStudents();renderResults();
  const msg=document.getElementById("saveMarkMsg");if(msg){msg.textContent=sub+" saved successfully ✓";msg.className="saveMarkMsg show";setTimeout(()=>msg.className="saveMarkMsg",1800)}
@@ -534,7 +540,7 @@ function renderStudentSummary(){
 }
 function renderMarksSnapshot(){
  const wrap=document.getElementById("marksSnapshot");if(!wrap||!currentStudent)return;
- const rows=SUBJECTS.map(sub=>{const m=currentStudent.marks?.[sub];if(isGradeOnly(sub))return `<tr><td>${sub}</td><td>Grade Only</td><td>${m?.grade||"—"}</td><td>—</td></tr>`;return `<tr><td>${sub}</td><td>100</td><td>${m?.obt??"—"}</td><td>${m?subjectGrade(Number(m.obt),100):"—"}</td></tr>`}).join("");
+ const rows=SUBJECTS.map(sub=>{const m=currentStudent.marks?.[sub];if(isGradeOnly(sub))return `<tr><td>${sub}</td><td>Grade Only</td><td>${m?.grade||"—"}</td><td>—</td></tr>`;return `<tr><td>${sub}</td><td>100</td><td class="${m&&["AB","ML"].includes(m.halfStatus)?"absentMark":""}">${m?(["AB","ML"].includes(m.halfStatus)?`${m.obt}/20 (${m.halfStatus})`:m.obt):"—"}</td><td>${m?subjectGrade(Number(m.obt),100):"—"}</td></tr>`}).join("");
  wrap.innerHTML=`<table class="miniMarks"><thead><tr><th>Subject</th><th>Max</th><th>Obtained / Grade</th><th>Grade</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -552,19 +558,35 @@ function loadSettings(){document.getElementById("schoolName").value=settings.sch
 function saveSettings(){settings={school:document.getElementById("schoolName").value,exam:document.getElementById("examName").value,cls:document.getElementById("className").value,teacher:document.getElementById("teacherName").value,principal:document.getElementById("principalName").value,passPct:Number(document.getElementById("passingPct").value)||33,logo:settings.logo};save();location.reload()}
 function downloadResultsCSV(){
  const arr=rollSorted(students),ranks=rankData();
- const headers=["Rank","Roll No","Student Name","Father Name","Gender",...MARK_SUBJECTS,...GRADE_ONLY_SUBJECTS,"Total / 700","Percentage","Overall Grade","Attendance %","Result"];
+ const headers=["Rank","Roll No","Student Name","Father Name","Gender",...MARK_SUBJECTS.map(x=>x+" Marks/100"),...MARK_SUBJECTS.map(x=>x+" Half-Yearly Status"),...GRADE_ONLY_SUBJECTS,"Total / 700","Percentage","Overall Grade","Attendance %","Result"];
  const rows=arr.map(s=>{
    const c=calc(s),i=ranks.findIndex(x=>String(x.s.roll)===String(s.roll)),rank=i>=0?i+1:"";
-   const marks=MARK_SUBJECTS.map(sub=>s.marks?.[sub]?.obt??"");
+   const marks=MARK_SUBJECTS.map(sub=>{const m=s.marks?.[sub];return m?(["AB","ML"].includes(m.halfStatus)?`${m.obt}/20`:m.obt):""});
+   const statuses=MARK_SUBJECTS.map(sub=>s.marks?.[sub]?.halfStatus||"Present");
    const grades=GRADE_ONLY_SUBJECTS.map(sub=>s.marks?.[sub]?.grade??"");
    const att=c.att?c.att.toFixed(1):"";
-   return [rank,s.roll,s.name,s.father||"",s.gender||"",...marks,...grades,`${c.total}/700`,c.complete?c.pct.toFixed(1)+"%":"",c.complete?c.grade:"",att,c.complete?(c.passed?"PASS":"FAIL"):"PENDING"];
+   return [rank,s.roll,s.name,s.father||"",s.gender||"",...marks,...statuses,...grades,`${c.total}/700`,c.complete?c.pct.toFixed(1)+"%":"",c.complete?c.grade:"",att,c.complete?(c.passed?"PASS":"FAIL"):"PENDING"];
  });
  const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
  const url=URL.createObjectURL(blob),a=document.createElement("a");
  a.href=url;a.download=`Milli-Model-School-Class-7B-Results-${new Date().toISOString().slice(0,10)}.csv`;
  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+function downloadResultsExcel(){
+ const arr=rollSorted(students),ranks=rankData();
+ const headers=["Rank","Roll No","Student Name","Father Name","Gender",...MARK_SUBJECTS,...MARK_SUBJECTS.map(x=>x+" Half-Yearly Status"),...GRADE_ONLY_SUBJECTS,"Total / 700","Percentage","Overall Grade","Attendance %","Result"];
+ const th=headers.map(h=>`<th>${esc(h)}</th>`).join("");
+ const rows=arr.map(st=>{const c=calc(st),ri=ranks.findIndex(x=>String(x.s.roll)===String(st.roll)),rank=ri>=0?ri+1:"";
+  const vals=[rank,st.roll,st.name,st.father||"",st.gender||""];
+  const markCells=MARK_SUBJECTS.map(sub=>{const m=st.marks?.[sub],abs=m&&["AB","ML"].includes(m.halfStatus),fail=m&&(Number(m.obt)<Number(m.pass||33)||abs);return `<td style="${abs?'background:#dfefff;color:#245db0;font-weight:bold':fail?'background:#fce7e7;color:#a52332;font-weight:bold':''}">${m?(abs?`${esc(m.obt)}/20 (${m.halfStatus})`:esc(m.obt)):""}</td>`}).join("");
+  const statusCells=MARK_SUBJECTS.map(sub=>{const stt=st.marks?.[sub]?.halfStatus||"Present",abs=["AB","ML"].includes(stt);return `<td style="${abs?'background:#dfefff;color:#245db0;font-weight:bold':''}">${esc(stt)}</td>`}).join("");
+  const gradeCells=GRADE_ONLY_SUBJECTS.map(sub=>`<td>${esc(st.marks?.[sub]?.grade||"")}</td>`).join("");
+  const result=c.complete?(c.passed?"PASS":"FAIL"):"PENDING",rc=c.complete?(c.passed?'background:#e3f5e8;color:#176b3a':'background:#fce7e7;color:#a52332'):'background:#fff4d6;color:#8a5a00';
+  return `<tr><td>${rank}</td>${vals.slice(1).map(v=>`<td>${esc(v)}</td>`).join("")}${markCells}${statusCells}${gradeCells}<td>${c.total}/700</td><td>${c.pct.toFixed(1)}%</td><td>${c.complete?c.grade:""}</td><td>${c.att?c.att.toFixed(1)+"%":""}</td><td style="${rc};font-weight:bold">${result}</td></tr>`;
+ }).join("");
+ const html=`<html><head><meta charset="utf-8"></head><body><h2>Milli Model School — Half Yearly Examination 2026</h2><table border="1" style="border-collapse:collapse;font-family:Arial;font-size:10pt"><thead><tr style="background:#e9f2fa">${th}</tr></thead><tbody>${rows}</tbody></table></body></html>`;
+ const blob=new Blob([html],{type:"application/vnd.ms-excel;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`Milli-Model-School-Class-7B-Coloured-Results-${new Date().toISOString().slice(0,10)}.xls`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 function printStudentByRoll(roll){const s=students.find(x=>String(x.roll)===String(roll));if(!s){alert("Student Not Found — please check the Roll Number.");return;}printHTML(reportCard(s));}
 function printIndividualPrompt(){
@@ -583,17 +605,17 @@ function printClassSheet(){
  const ranks=rankData();
  const rows=arr.map((st)=>{
    const c=calc(st),ri=ranks.findIndex(x=>String(x.s.roll)===String(st.roll)),rank=ri>=0?ri+1:null;
-   const cells=MARK_SUBJECTS.map(sub=>`<td>${st.marks?.[sub]?.obt??"—"}</td>`).join("");
+   const cells=MARK_SUBJECTS.map(sub=>{const m=st.marks?.[sub],abs=m&&["AB","ML"].includes(m.halfStatus),fail=m&&(Number(m.obt)<Number(m.pass||33)||abs);return `<td class="${abs?"absentMark":fail?"failMark":""}">${m?(abs?`${m.obt}/20 (${m.halfStatus})`:m.obt):"—"}</td>`}).join("");
    const grades=GRADE_ONLY_SUBJECTS.map(sub=>`<td><b>${st.marks?.[sub]?.grade||"—"}</b></td>`).join("");
-   const rowClass=c.complete&&rank>=1&&rank<=4?`topRank${rank}`:"";
-   return `<tr class="${rowClass}"><td>${rank?`<b>${rank}</b>`:"—"}</td><td>${esc(st.roll)}</td><td>${esc(st.name)}</td>${cells}${grades}<td>${c.total}/700</td><td>${c.pct.toFixed(1)}%</td><td>${c.complete?c.grade:"—"}</td><td>${c.att?c.att.toFixed(1)+"%":"—"}</td><td>${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</td></tr>`;
+   const rowClass=c.complete&&rank>=1&&rank<=4?`topRank${rank}`:"";const resultText=c.complete?(c.passed?"PASS":"FAIL"):"PENDING";const resultClass=c.complete?(c.passed?"passCell":"failCell"):"pendingCell";
+   return `<tr class="${rowClass}"><td>${rank?`<b>${rank}</b>`:"—"}</td><td>${esc(st.roll)}</td><td>${esc(st.name)}</td>${cells}${grades}<td>${c.total}/700</td><td>${c.pct.toFixed(1)}%</td><td>${c.complete?c.grade:"—"}</td><td>${c.att?c.att.toFixed(1)+"%":"—"}</td><td class="${resultClass}">${resultText}</td></tr>`;
  }).join("");
  printHTML(`<div class="sheet landscape classSheetPage"><div class="sheetHead"><img src="${settings.logo}"><div><h1>${esc(settings.school)}</h1><h2>${esc(settings.exam)}</h2><p>${esc(settings.cls)} • Full Class Result Sheet</p></div></div><table class="printTable classSheet"><thead><tr><th>Rank</th><th>Roll</th><th>Student</th>${heads}<th>Total</th><th>%</th><th>Grade</th><th>Attendance</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table><div class="summaryPrint">Class Teacher: ${esc(settings.teacher)} &nbsp;&nbsp; Principal: ${esc(settings.principal||"Samina Begum")}</div></div>`);
 }
 function reportCard(s){
  const c=calc(s),rankIndex=rankData().findIndex(x=>x.s.roll===s.roll),rank=rankIndex>=0?rankIndex+1:"—";
  const photo=s.photo?`<img class="studentPhoto" src="${s.photo}">`:`<img class="studentPhoto placeholderImg" src="${defaultGenderIcon(s.gender)}">`;
- const rows=MARK_SUBJECTS.map(sub=>{const m=s.marks?.[sub];return `<tr><td>${sub}</td><td>100</td><td>${m?.obt??"—"}</td><td>${m?subjectGrade(Number(m.obt),100):"—"}</td><td>${m?(Number(m.obt)>=Number(m.pass??33)?"PASS":"FAIL"):"—"}</td></tr>`}).join("");
+ const rows=MARK_SUBJECTS.map(sub=>{const m=s.marks?.[sub],abs=m&&["AB","ML"].includes(m.halfStatus),fail=m&&(Number(m.obt)<Number(m.pass??33)||abs);return `<tr><td>${sub}</td><td>100</td><td class="${abs?"absentMark":fail?"failMark":""}">${m?(abs?`${m.obt}/20 (${m.halfStatus})`:m.obt):"—"}</td><td>${m?subjectGrade(Number(m.obt),100):"—"}</td><td class="${abs?"absentMark":fail?"failCell":"passCell"}">${m?(abs?`FAIL (${m.halfStatus})`:fail?"FAIL":"PASS"):"—"}</td></tr>`}).join("");
  const gr=GRADE_ONLY_SUBJECTS.map(sub=>`<tr><td>${sub}</td><td>Grade Only</td><td>—</td><td>${s.marks?.[sub]?.grade||"—"}</td><td>—</td></tr>`).join("");
  return `<div class="sheet portal-result-sheet"><div class="sheetHead portal-result-head"><img src="${settings.logo}"><div><h1>${esc(settings.school)}</h1><h2>${esc(settings.exam)}</h2><p>${esc(settings.cls)} • Individual Report Card</p></div>${photo}</div><div class="infoGrid"><div><b>Student Name</b><span>${esc(s.name)}</span></div><div><b>Roll No.</b><span>${esc(s.roll)}</span></div><div><b>Father Name</b><span>${esc(s.father||"—")}</span></div><div><b>Gender</b><span>${esc(s.gender||"—")}</span></div></div><table class="printTable"><thead><tr><th>Subject</th><th>Max Marks</th><th>Obtained</th><th>Grade</th><th>Status</th></tr></thead><tbody>${rows}${gr}</tbody></table><div class="metrics"><div>Total Marks<strong>${c.total}/700</strong></div><div>Percentage<strong>${c.pct.toFixed(1)}%</strong></div><div class="yourRankBox"><div class="yourRankLabel">Your Rank</div><div class="yourRankValue">${c.complete?ordinal(rank):"—"}</div></div><div>Attendance<strong>${c.att?c.att.toFixed(1)+"%":"—"}</strong></div><div>Overall Grade<strong>${c.complete?c.grade:"—"}</strong></div><div>Result<strong class="${c.passed?"p":"f"}">${c.complete?(c.passed?"PASS":"FAIL"):"PENDING"}</strong></div></div><div class="remarks"><b>Remarks:</b> ${esc(c.remarks)}</div><div class="sign"><span>Class Teacher: ${esc(settings.teacher)}</span><span>Principal: ${esc(settings.principal||"Samina Begum")}</span></div></div>`;
 }
@@ -603,11 +625,11 @@ function printHTML(body){let w=window.open("","_blank");if(!w){alert("Please all
 /* Individual result shown inside the portal: keep the same compact layout as print. */
 .publicResultArea{overflow:hidden}.publicResultArea .sheet{width:100%;max-width:980px;margin:0 auto;padding:20px;border:1px solid #dfe7f1;border-radius:14px;background:#fff;color:#17324d;box-shadow:0 5px 18px #0b234208}.publicResultArea .sheetHead{display:flex;align-items:center;gap:14px;border-bottom:3px solid #a9c9e8;padding-bottom:8px}.publicResultArea .sheetHead img:first-child{width:62px;height:62px;object-fit:contain;flex:0 0 62px}.publicResultArea .sheetHead h1{margin:0;font-size:21px}.publicResultArea .sheetHead h2{margin:3px 0;font-size:14px;color:#487ca7}.publicResultArea .sheetHead p{margin:0;color:#718096;font-size:11px}.publicResultArea .studentPhoto{margin-left:auto;width:70px;height:84px;object-fit:cover;border:1px solid #ccd9e5;border-radius:7px}.publicResultArea .placeholderImg{padding:3px;background:#f4f8fb}.publicResultArea .infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.publicResultArea .infoGrid div{background:#f4f8fc;border-radius:6px;padding:7px}.publicResultArea .infoGrid b{display:block;color:#74859a;font-size:9px}.publicResultArea .infoGrid span{font-weight:700;font-size:11px}.publicResultArea .printTable{width:100%;border-collapse:collapse;margin-top:9px;font-size:11px}.publicResultArea .printTable th{background:#e9f2fa;color:#284a66}.publicResultArea .printTable th,.publicResultArea .printTable td{border:1px solid #ccd9e5;padding:7px;text-align:center}.publicResultArea .printTable td:first-child,.publicResultArea .printTable th:first-child{text-align:left}.publicResultArea .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:9px}.publicResultArea .metrics div{background:#f1f7fb;border:1px solid #dce8f1;border-radius:6px;padding:8px;text-align:center;font-size:10px}.publicResultArea .metrics strong{display:block;font-size:16px;margin-top:2px}.publicResultArea .metrics .p{color:#138a63}.publicResultArea .metrics .f{color:#c84b59}.publicResultArea .remarks{margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:11px}.publicResultArea .sign{display:flex;justify-content:space-between;margin-top:28px;font-size:11px}.overviewTableWrap{overflow:auto}.overviewFilters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.overviewFilters input,.overviewFilters select{padding:10px 12px;border:1px solid var(--border);border-radius:9px}.overviewSummary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.overviewChip{background:#f4f8fc;border:1px solid #dfe7f1;border-radius:10px;padding:8px 12px;font-size:12px}.overviewChip b{font-size:15px}.overviewPass{color:#138a63}.overviewFail{color:#c84b59}
 
-</style></head><body>${body}<footer class="appFooter">RESULT PORTAL | <b>v5.3</b></footer></body></html>`);w.document.close();setTimeout(()=>w.print(),500)}
+</style></head><body>${body}<footer class="appFooter">RESULT PORTAL | <b>v5.9</b></footer></body></html>`);w.document.close();setTimeout(()=>w.print(),500)}
 
-function printCSS(){return `.sheet{width:190mm;min-height:275mm;margin:0 auto;padding:9mm;font-family:Arial;color:#17324d;background:#fff}.landscape{width:400mm;min-height:275mm}.classSheetPage{page:classSheet}.sheetHead{display:flex;align-items:center;gap:14px;border-bottom:3px solid #a9c9e8;padding-bottom:8px}.sheetHead img{width:62px;height:62px;object-fit:contain}.sheetHead h1{margin:0;font-size:21px}.sheetHead h2{margin:3px 0;font-size:14px;color:#487ca7}.sheetHead p{margin:0;color:#718096;font-size:11px}.studentPhoto{margin-left:auto;width:70px;height:84px;object-fit:cover;border:1px solid #ccd9e5;border-radius:7px}.placeholderImg{padding:3px;background:#f4f8fb}.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.infoGrid div{background:#f4f8fc;border-radius:6px;padding:7px}.infoGrid b{display:block;color:#74859a;font-size:9px}.infoGrid span{font-weight:700;font-size:11px}.printTable{width:100%;border-collapse:collapse;margin-top:9px;font-size:9px}.printTable th{background:#e9f2fa;color:#284a66}.printTable th,.printTable td{border:1px solid #ccd9e5;padding:5px;text-align:center}.printTable td:first-child,.printTable th:first-child{text-align:left}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:9px}.metrics div{background:#f1f7fb;border:1px solid #dce8f1;border-radius:6px;padding:7px;text-align:center;font-size:9px}.metrics strong{display:block;font-size:14px;margin-top:2px}.metrics .p{color:#138a63}.metrics .f{color:#c84b59}.remarks{margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:10px}.sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10px}.summaryPrint{margin-top:10px;font-size:9px;color:#65758a}.classSheet{width:100%;table-layout:fixed;font-size:8.5px}.classSheet th,.classSheet td{padding:3px 2px;white-space:nowrap;font-size:8.5px;line-height:1.15}.classSheet th:nth-child(3),.classSheet td:nth-child(3){width:19%}.break{page-break-after:always}@page{size:A4 portrait;margin:8mm} @page classSheet{size:A3 landscape;margin:6mm}@media print{body{margin:0}.landscape{width:100%;min-height:0;padding:5mm;box-sizing:border-box;page-break-before:always;page-break-inside:avoid}.classSheetPage{width:100%;min-height:0;box-sizing:border-box}.classSheetPage .sheetHead{padding-bottom:5px}.classSheetPage .sheetHead img{width:48px;height:48px}.classSheetPage .sheetHead h1{font-size:18px}.classSheetPage .sheetHead h2{font-size:12px}.classSheetPage .sheetHead p{font-size:9px}.classSheetPage .summaryPrint{font-size:8px;margin-top:5px}}`; }
+function printCSS(){return `.sheet{width:190mm;min-height:275mm;margin:0 auto;padding:9mm;font-family:Arial;color:#17324d;background:#fff}.landscape{width:400mm;min-height:275mm}.classSheetPage{page:classSheet}.sheetHead{display:flex;align-items:center;gap:14px;border-bottom:3px solid #a9c9e8;padding-bottom:8px}.sheetHead img{width:62px;height:62px;object-fit:contain}.sheetHead h1{margin:0;font-size:21px}.sheetHead h2{margin:3px 0;font-size:14px;color:#487ca7}.sheetHead p{margin:0;color:#718096;font-size:11px}.studentPhoto{margin-left:auto;width:70px;height:84px;object-fit:cover;border:1px solid #ccd9e5;border-radius:7px}.placeholderImg{padding:3px;background:#f4f8fb}.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}.infoGrid div{background:#f4f8fc;border-radius:6px;padding:7px}.infoGrid b{display:block;color:#74859a;font-size:9px}.infoGrid span{font-weight:700;font-size:11px}.printTable{width:100%;border-collapse:collapse;margin-top:9px;font-size:9px}.printTable th{background:#e9f2fa;color:#284a66}.printTable th,.printTable td{border:1px solid #ccd9e5;padding:5px;text-align:center}.printTable td:first-child,.printTable th:first-child{text-align:left}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:9px}.metrics div{background:#f1f7fb;border:1px solid #dce8f1;border-radius:6px;padding:7px;text-align:center;font-size:9px}.metrics strong{display:block;font-size:14px;margin-top:2px}.metrics .p{color:#138a63}.metrics .f{color:#c84b59}.remarks{margin-top:9px;padding:8px;background:#fff9ec;border-left:3px solid #e3b44c;font-size:10px}.sign{display:flex;justify-content:space-between;margin-top:32px;font-size:10px}.summaryPrint{margin-top:10px;font-size:9px;color:#65758a}.classSheet{width:100%;table-layout:fixed;font-size:10px}.classSheet th,.classSheet td{padding:4px 3px;white-space:nowrap;font-size:10px;line-height:1.2}.passCell{background:#e3f5e8!important;color:#176b3a!important;font-weight:700}.failCell,.failMark{background:#fce7e7!important;color:#a52332!important;font-weight:700}.absentMark{background:#dfefff!important;color:#245db0!important;font-weight:700}.pendingCell{background:#fff4d6!important;color:#8a5a00!important;font-weight:700}.classSheet th:nth-child(3),.classSheet td:nth-child(3){width:19%}.break{page-break-after:always}@page{size:A4 portrait;margin:8mm} @page classSheet{size:A3 landscape;margin:6mm}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{margin:0}.landscape{width:100%;min-height:0;padding:5mm;box-sizing:border-box;page-break-before:always;page-break-inside:avoid}.classSheetPage{width:100%;min-height:0;box-sizing:border-box}.classSheetPage .sheetHead{padding-bottom:5px}.classSheetPage .sheetHead img{width:48px;height:48px}.classSheetPage .sheetHead h1{font-size:18px}.classSheetPage .sheetHead h2{font-size:12px}.classSheetPage .sheetHead p{font-size:9px}.classSheetPage .summaryPrint{font-size:8px;margin-top:5px}}`; }
 function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 document.getElementById("sideLogo").src=settings.logo;
 updateDashboard();renderStudents();renderAttendance();renderResultOverview();loadSettings();
 cloudBoot();
-</script><footer class="appFooter">RESULT PORTAL | <b>v5.3</b></footer></body></html>
+</script><footer class="appFooter">RESULT PORTAL | <b>v5.9</b></footer></body></html>
